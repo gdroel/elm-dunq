@@ -8,45 +8,105 @@ type alias Binding =
 
 type alias Env = List Binding
 
+type alias ExprCL = List ExprC
+
+type alias AppCType =
+  { func : ExprC,
+    args : ExprCL }
+
 type ExprC = 
   NumC Float | 
   StringC String |
-  AppC ExprC List ExprC
+  AppC ExprC ExprCL
+
 
 type Value = 
   NumV Float |
   StringV String |
   ErrorV String |
-  PrimVPlus
+  PrimVPlus |
+  PrimVMinus |
+  PrimVMult |
+  PrimVDiv
 
 ----------------------------
 -- Interpreting functions --
 ----------------------------
 
 -- Interprets an AST --
-interp : ExprC -> List String -> Value
-interp expr env =
+interp : List String -> ExprC -> Value
+interp env expr =
   case expr of 
-    NumC n ->
-      (NumV n)
-    StringC s -> 
-      (StringV s)
+    NumC n -> (NumV n)
+    StringC s -> (StringV s)
     AppC appc_expr args ->
-      (ErrorV "Not implemented yet")
-      --case (interp appc_expr env) of
-      --  PrimVPlus ->
+       case (interp env appc_expr) of
+          StringV symbol ->
+            case symbol of
+              "+" -> (interp_plus (List.map (interp env) args))
+              "-" -> (interp_minus (List.map (interp env) args))
+              "*" -> (interp_mult (List.map (interp env) args))
+              "/" -> (interp_div (List.map (interp env) args))
+              _ -> (ErrorV "should match a prim function")
+          _ -> (ErrorV "should match a symbol representing prim function")
+      
 
-          -- 
+-- Inteprets a mult, can take any amount of args
+interp_mult : List Value -> Value
+interp_mult values =
+  case (List.head values) of
+    Nothing -> (NumV 0)           -- these functions seem to match here... why?
+    Just value ->
+      case value of
+        NumV n ->
+          case (interp_mult (List.drop 1 values)) of
+              NumV n2 -> (NumV (n * n2))
+              _ -> (ErrorV "second in list should match a NumV")
+        _ -> (ErrorV "first in list should match a NumV")
+
+
+-- Inteprets a div, can take any amount of args
+interp_div : List Value -> Value
+interp_div values =
+  case (List.head values) of
+    Nothing -> (NumV 0)             -- these functions seem to match here... why?
+    Just value ->
+      case value of
+        NumV n ->
+          case (interp_div (List.drop 1 values)) of
+              NumV n2 -> (NumV (n / n2))
+              _ -> (ErrorV "second in list should match a NumV")
+        _ -> (ErrorV "first in list should match a NumV")
+
 
 -- Inteprets a plus, can take any amount of args
 interp_plus : List Value -> Value
 interp_plus values =
-  case (List.head curr_env) of
-    Nothing -> 0
+  case (List.head values) of
+    Nothing -> (NumV 0)
     Just value ->
       case value of
         NumV n ->
-          (NumV n + (interp_plus (List.drop 1 curr_env)).n)
+          case (interp_plus (List.drop 1 values)) of
+              NumV n2 -> (NumV (n + n2))
+              _ -> (ErrorV "second in list should match a NumV")
+        _ -> (ErrorV "first in list should match a NumV")
+
+-- Inteprets a minus, can take any amount of args
+interp_minus : List Value -> Value
+interp_minus values =
+  case (List.head values) of
+    Nothing -> (NumV 0)
+    Just value ->
+      case value of
+        NumV n ->
+          case (interp_minus (List.drop 1 values)) of
+              NumV n2 -> (NumV (n - n2))
+              _ -> (ErrorV "second in list should match a NumV")
+        _ -> (ErrorV "first in list should match a NumV")
+
+
+
 
 ---------------------------
 -- Environment functions --
@@ -86,8 +146,13 @@ test_env = (env_extend (env_extend env_new (Binding "first" (NumV 1))) (Binding 
 -- Add all tests here 
 test_list = [
   -- Interpretation Tests --
-  (check_equal (interp (NumC 4) []) (NumV 4)),
-  (check_equal (interp (StringC "hi") []) (StringV "hi")),
+  (check_equal (interp [] (NumC 4)) (NumV 4)),
+  (check_equal (interp [] (StringC "hi")) (StringV "hi")),
+  (check_equal (interp [] (AppC (StringC "+") [(NumC 2), (NumC 2)])) (NumV 4)),
+  (check_equal (interp [] (AppC (StringC "-") [(NumC 2), (NumC 2)])) (NumV 0)),
+  (check_equal (interp [] (AppC (StringC "*") [(NumC 2), (NumC 2)])) (NumV 4)), -- these fail for no reason
+  (check_equal (interp [] (AppC (StringC "/") [(NumC 2), (NumC 2)])) (NumV 1)), -- these fail for no reason
+  
 
   --- Environmnent Tests -- 
   (check_equal env_new []),

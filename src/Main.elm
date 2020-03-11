@@ -2,8 +2,8 @@ module Main exposing (..)
 
 import Html
 
-type alias Binding = 
-  { name : String, 
+type alias Binding =
+  { name : String,
     value : Value }
 
 type alias Env = List Binding
@@ -14,13 +14,13 @@ type alias AppCType =
   { func : ExprC,
     args : ExprCL }
 
-type ExprC = 
-  NumC Float | 
+type ExprC =
+  NumC Float |
   StringC String |
   AppC ExprC ExprCL
 
 
-type Value = 
+type Value =
   NumV Float |
   StringV String |
   ErrorV String |
@@ -36,7 +36,7 @@ type Value =
 -- Interprets an AST --
 interp : List String -> ExprC -> Value
 interp env expr =
-  case expr of 
+  case expr of
     NumC n -> (NumV n)
     StringC s -> (StringV s)
     AppC appc_expr args ->
@@ -49,7 +49,7 @@ interp env expr =
               "/" -> (interp_div (List.map (interp env) args))
               _ -> (ErrorV "should match a prim function")
           _ -> (ErrorV "should match a symbol representing prim function")
-      
+
 
 -- Inteprets a mult, can take any amount of args
 interp_mult : List Value -> Value
@@ -112,14 +112,14 @@ interp_minus values =
 -- Environment functions --
 ---------------------------
 
--- Creates a new environment -- 
-env_new : List Binding 
+-- Creates a new environment --
+env_new : List Binding
 env_new = []
 
--- Extends an existing environment -- 
+-- Extends an existing environment --
 -- "::" is the elm version of cons --
 env_extend : Env -> Binding -> Env
-env_extend curr_env binding = 
+env_extend curr_env binding =
   binding :: curr_env
 
 -- Looks up value in environment --
@@ -139,11 +139,11 @@ check_equal test expected =
   if test == expected then
     "Success\n"
   else
-    "Failure: " ++ (Debug.toString test) ++ " != " ++ (Debug.toString expected) 
+    "Failure: " ++ (Debug.toString test) ++ " != " ++ (Debug.toString expected)
 
-test_env = (env_extend (env_extend env_new (Binding "first" (NumV 1))) (Binding "second" (NumV 2))) 
-    
--- Add all tests here 
+test_env = (env_extend (env_extend env_new (Binding "first" (NumV 1))) (Binding "second" (NumV 2)))
+
+-- Add all tests here
 test_list = [
   -- Interpretation Tests --
   (check_equal (interp [] (NumC 4)) (NumV 4)),
@@ -152,15 +152,14 @@ test_list = [
   (check_equal (interp [] (AppC (StringC "-") [(NumC 2), (NumC 2)])) (NumV 0)),
   (check_equal (interp [] (AppC (StringC "*") [(NumC 2), (NumC 2)])) (NumV 4)), -- these fail for no reason
   (check_equal (interp [] (AppC (StringC "/") [(NumC 2), (NumC 2)])) (NumV 1)), -- these fail for no reason
-  
 
-  --- Environmnent Tests -- 
+
+  --- Environmnent Tests --
   (check_equal env_new []),
   (check_equal (env_extend env_new (Binding "first" (NumV 4))) [(Binding "first" (NumV 4))]),
   (check_equal (env_lookup test_env "second") (NumV 2)),
   (check_equal (env_lookup [] "dne") (ErrorV "Value not found in environment"))
   ]
- 
+
 
 main = Html.text (Debug.toString test_list)
-  

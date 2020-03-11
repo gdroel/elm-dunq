@@ -49,21 +49,34 @@ interp env expr =
     LamC args body -> (ClosV args body env)
     AppC appc_expr args ->
       case (interp env appc_expr) of
-          PrimV symbol ->
-            case symbol of
-              '+' -> (interp_plus (List.map (interp env) args))
-              '-' -> (interp_minus (List.map (interp env) args))
-              '*' -> (interp_mult (List.map (interp env) args))
-              '/' -> (interp_div (List.map (interp env) args))
-              _ -> (ErrorV "should match a prim function")
-          _ -> (ErrorV "should match a symbol representing prim function")
+        PrimV symbol ->
+          case symbol of
+            '+' -> (interp_plus (List.map (interp env) args))
+            '-' -> (interp_minus (List.map (interp env) args))
+            '*' -> (interp_mult (List.map (interp env) args))
+            '/' -> (interp_div (List.map (interp env) args))
+            _ -> (ErrorV "should match a prim function")
+        ClosV c_args c_body c_env ->
+          (interp
+            (arg_list c_args
+              (List.map (\arg -> (interp env arg)) args) c_env)
+            c_body)
+        _ -> (ErrorV "should match a symbol representing prim function")
 
 
 arg_list : SymbolL -> ValueL -> Env -> Env
 arg_list syms exprs env =
-  if List.isEmpty syms and List.isEmpty exprs then
+  if List.isEmpty syms && List.isEmpty exprs then
     env
   else
+    let (s, e) = ((List.head syms), (List.head exprs)) in
+      case s of
+        Just sym ->
+          case e of
+            Just expr ->
+              (Binding sym expr) :: (arg_list (List.drop 1 syms) (List.drop 1 exprs) env)
+            _ -> env
+        _ -> env
 
 
 -- Inteprets a mult, can take any amount of args
@@ -157,17 +170,24 @@ check_equal test expected =
     "Failure: " ++ (Debug.toString test) ++ " != " ++ (Debug.toString expected)
 
 test_env = (env_extend (env_extend env_new (Binding 'f' (NumV 1))) (Binding 's' (NumV 2)))
+top_env = [{name = '+', value = (PrimV '+')}, {name = '-', value = (PrimV '-')}, {name = '*', value = (PrimV '*')},
+            {name = '/', value = (PrimV '/')}]
 
 -- Add all tests here
 test_list = [
   -- Interpretation Tests --
   (check_equal (interp [] (NumC 4)) (NumV 4)),
   (check_equal (interp [] (StringC "hi")) (StringV "hi")),
-  (check_equal (interp [] (AppC (CharC '+') [(NumC 2), (NumC 2)])) (NumV 4)),
-  (check_equal (interp [] (AppC (CharC '-') [(NumC 2), (NumC 2)])) (NumV 0)),
-  (check_equal (interp [] (AppC (CharC '*') [(NumC 2), (NumC 2)])) (NumV 4)), -- these fail for no reason
-  (check_equal (interp [] (AppC (CharC '/') [(NumC 2), (NumC 2)])) (NumV 1)), -- these fail for no reason
+  (check_equal (interp top_env (AppC (CharC '+') [(NumC 2), (NumC 2)])) (NumV 4)),
+  (check_equal (interp top_env (AppC (CharC '-') [(NumC 2), (NumC 2)])) (NumV 0)),
+  (check_equal (interp top_env (AppC (CharC '*') [(NumC 2), (NumC 2)])) (NumV 4)), -- these fail for no reason
+  (check_equal (interp top_env (AppC (CharC '/') [(NumC 2), (NumC 2)])) (NumV 1)), -- these fail for no reason
+  (check_equal (interp top_env (AppC (LamC ['x', 'y'] (AppC (CharC '+') [(CharC 'y'), (CharC 'x')]))
+                    [(AppC (CharC '+') [(NumC 13), (NumC 4)]), (NumC 12)])) (NumV 29)),
 
+  --- arg list tests ---
+  (check_equal (arg_list ['s', 'x'] [(NumV 2), (NumV 3)] []) [{ name = 's', value = (NumV 2)},
+                                                              { name = 'x', value = (NumV 3)}]),
 
   --- Environmnent Tests --
   (check_equal env_new []),

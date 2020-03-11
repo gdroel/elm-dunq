@@ -1,61 +1,76 @@
 module Main exposing (..)
-
+import Dict
 import Html
 
 type alias Binding =
-  { name : String,
+  { name : Char,
     value : Value }
 
 type alias Env = List Binding
 
 type alias ExprCL = List ExprC
+type alias SymbolL = List Char
+
+type alias ValueL = List Value
 
 type alias AppCType =
   { func : ExprC,
     args : ExprCL }
 
+
 type ExprC =
   NumC Float |
+  CharC Char |
   StringC String |
+  LamC SymbolL ExprC |
   AppC ExprC ExprCL
 
 
 type Value =
   NumV Float |
   StringV String |
+  BoolV Bool |
+  PrimV Char |
   ErrorV String |
-  PrimVPlus |
-  PrimVMinus |
-  PrimVMult |
-  PrimVDiv
+  ClosV SymbolL ExprC Env
+
 
 ----------------------------
 -- Interpreting functions --
 ----------------------------
 
 -- Interprets an AST --
-interp : List String -> ExprC -> Value
+interp : Env -> ExprC -> Value
 interp env expr =
   case expr of
     NumC n -> (NumV n)
+    CharC c -> (env_lookup env c)
     StringC s -> (StringV s)
+    LamC args body -> (ClosV args body env)
     AppC appc_expr args ->
-       case (interp env appc_expr) of
-          StringV symbol ->
+      case (interp env appc_expr) of
+          PrimV symbol ->
             case symbol of
-              "+" -> (interp_plus (List.map (interp env) args))
-              "-" -> (interp_minus (List.map (interp env) args))
-              "*" -> (interp_mult (List.map (interp env) args))
-              "/" -> (interp_div (List.map (interp env) args))
+              '+' -> (interp_plus (List.map (interp env) args))
+              '-' -> (interp_minus (List.map (interp env) args))
+              '*' -> (interp_mult (List.map (interp env) args))
+              '/' -> (interp_div (List.map (interp env) args))
               _ -> (ErrorV "should match a prim function")
           _ -> (ErrorV "should match a symbol representing prim function")
+
+
+arg_list : SymbolL -> ValueL -> Env -> Env
+arg_list syms exprs env =
+  if List.isEmpty syms and List.isEmpty exprs then
+    env
+  else
 
 
 -- Inteprets a mult, can take any amount of args
 interp_mult : List Value -> Value
 interp_mult values =
   case (List.head values) of
-    Nothing -> (NumV 0)           -- these functions seem to match here... why?
+    Nothing -> (NumV 0)          -- these functions seem to match here... why?
     Just value ->
       case value of
         NumV n ->
@@ -69,7 +84,7 @@ interp_mult values =
 interp_div : List Value -> Value
 interp_div values =
   case (List.head values) of
-    Nothing -> (NumV 0)             -- these functions seem to match here... why?
+    Nothing -> (NumV 0)            -- these functions seem to match here... why?
     Just value ->
       case value of
         NumV n ->
@@ -123,7 +138,7 @@ env_extend curr_env binding =
   binding :: curr_env
 
 -- Looks up value in environment --
-env_lookup : Env -> String -> Value
+env_lookup : Env -> Char -> Value
 env_lookup curr_env name =
   case (List.head curr_env) of
     Nothing ->
@@ -141,24 +156,24 @@ check_equal test expected =
   else
     "Failure: " ++ (Debug.toString test) ++ " != " ++ (Debug.toString expected)
 
-test_env = (env_extend (env_extend env_new (Binding "first" (NumV 1))) (Binding "second" (NumV 2)))
+test_env = (env_extend (env_extend env_new (Binding 'f' (NumV 1))) (Binding 's' (NumV 2)))
 
 -- Add all tests here
 test_list = [
   -- Interpretation Tests --
   (check_equal (interp [] (NumC 4)) (NumV 4)),
   (check_equal (interp [] (StringC "hi")) (StringV "hi")),
-  (check_equal (interp [] (AppC (StringC "+") [(NumC 2), (NumC 2)])) (NumV 4)),
-  (check_equal (interp [] (AppC (StringC "-") [(NumC 2), (NumC 2)])) (NumV 0)),
-  (check_equal (interp [] (AppC (StringC "*") [(NumC 2), (NumC 2)])) (NumV 4)), -- these fail for no reason
-  (check_equal (interp [] (AppC (StringC "/") [(NumC 2), (NumC 2)])) (NumV 1)), -- these fail for no reason
+  (check_equal (interp [] (AppC (CharC '+') [(NumC 2), (NumC 2)])) (NumV 4)),
+  (check_equal (interp [] (AppC (CharC '-') [(NumC 2), (NumC 2)])) (NumV 0)),
+  (check_equal (interp [] (AppC (CharC '*') [(NumC 2), (NumC 2)])) (NumV 4)), -- these fail for no reason
+  (check_equal (interp [] (AppC (CharC '/') [(NumC 2), (NumC 2)])) (NumV 1)), -- these fail for no reason
 
 
   --- Environmnent Tests --
   (check_equal env_new []),
-  (check_equal (env_extend env_new (Binding "first" (NumV 4))) [(Binding "first" (NumV 4))]),
-  (check_equal (env_lookup test_env "second") (NumV 2)),
-  (check_equal (env_lookup [] "dne") (ErrorV "Value not found in environment"))
+  (check_equal (env_extend env_new (Binding 'f' (NumV 4))) [(Binding 'f' (NumV 4))]),
+  (check_equal (env_lookup test_env 's') (NumV 2)),
+  (check_equal (env_lookup [] 'd') (ErrorV "Value not found in environment"))
   ]
 
 

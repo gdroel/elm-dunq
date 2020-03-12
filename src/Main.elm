@@ -180,10 +180,12 @@ test_list = [
   (check_equal (interp [] (StringC "hi")) (StringV "hi")),
   (check_equal (interp top_env (AppC (CharC '+') [(NumC 2), (NumC 2)])) (NumV 4)),
   (check_equal (interp top_env (AppC (CharC '-') [(NumC 2), (NumC 2)])) (NumV 0)),
-  (check_equal (interp top_env (AppC (CharC '*') [(NumC 2), (NumC 2)])) (NumV 4)), -- these fail for no reason
-  (check_equal (interp top_env (AppC (CharC '/') [(NumC 2), (NumC 2)])) (NumV 1)), -- these fail for no reason
+  (check_equal (interp top_env (AppC (CharC '*') [(NumC 2), (NumC 2)])) (NumV 4.0)), -- these fail for no reason
+  (check_equal (interp top_env (AppC (CharC '/') [(NumC 2), (NumC 2)])) (NumV 1.0)), -- these fail for no reason
   (check_equal (interp top_env (AppC (LamC ['x', 'y'] (AppC (CharC '+') [(CharC 'y'), (CharC 'x')]))
                     [(AppC (CharC '+') [(NumC 13), (NumC 4)]), (NumC 12)])) (NumV 29)),
+  (check_equal (interp top_env (AppC (LamC ['g'] (AppC (CharC 'g') [(NumC 10), (NumC 5)]))
+    [(LamC ['a', 'b'] (AppC (CharC '+') [(CharC 'a'), (CharC 'b')]))])) (NumV 15)),
 
   --- arg list tests ---
   (check_equal (arg_list ['s', 'x'] [(NumV 2), (NumV 3)] []) [{ name = 's', value = (NumV 2)},
